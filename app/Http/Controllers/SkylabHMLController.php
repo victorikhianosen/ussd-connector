@@ -50,6 +50,9 @@ class SkylabHMLController extends Controller
                     'serviceCode' => $shortCode,
                 ];
 
+                $this->initiateBilling($parameters);
+
+
                 Log::info('USSD Call Parameters:', $parameters);
 
                 $response = $this->fireUssd(json_encode($parameters));
@@ -65,7 +68,7 @@ class SkylabHMLController extends Controller
                     'content' => $request->input,  // Use actual user input
                     'commandID' => $command,
                     'src' => $telco,
-                    'serviceCode' => app('redis')->get($service_code_key) ?? $shortCode,  // Correct service code retrieval
+                    'serviceCode' => app('redis')->get($service_code_key) ?? $shortCode,
                 ];
 
                 Log::info('USSD Continue Session Parameters:', $parameters);
@@ -126,5 +129,50 @@ class SkylabHMLController extends Controller
                 'info' => ''
             ];
         }
+    }
+
+
+    public function initiateBilling($parameters)
+    {
+        $url = 'http://91.109.117.92:8001/api/v1/product/subscription/initiate';
+
+        $headers = [
+            'Accept' => 'application/json',
+            'Content-Type' => 'application/json',
+            'Authorization' => 'Bearer SkzvHsZQio500agIqRl9',
+
+        ];
+
+        $data = [
+            "product_id" => "315",
+            "phone" => $parameters['msisdn'],
+            "telco" => "MTN",
+            "channel" => "USSD",
+        ];
+
+        $response = Http::withHeaders($headers)->post($url, $data);
+
+        Log::info('Billing Response:', ['body' => $response->json()]);
+
+        if ($response->successful()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Billing initiated successfully!',
+                'data' => $response->json(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Billing failed!',
+            'error' => $response->body(),
+        ], $response->status());
+    }
+
+
+    public function billingCallBack (Request $request) {
+
+        Log::info('CallBack Billings:', $request->all());
+
     }
 }
